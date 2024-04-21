@@ -1,14 +1,27 @@
-import { useState } from 'react';
-import { ImageBackground, StyleSheet, View, Text, TextInput, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useState } from 'react';
+import { ImageBackground, StyleSheet, View, Text, TextInput, TouchableOpacity, Platform, KeyboardAvoidingView, Alert } from 'react-native';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const Start = ({ navigation }) => {
+  const auth = getAuth();
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
-  const image = require('../img/BackgroundImage.png'); 
+  const image = require('../img/BackgroundImage.png');
+
+  const signInUser = () => {
+    signInAnonymously(auth)
+    .then( result => {
+      navigation.navigate('Chat', { userName: name, background: selectedColor, id: result.user.uid });
+      Alert.alert('Signed in succeccfully');
+    }).catch((error) => {
+      Alert.alert('Unable to signin, try later');
+    })
+  };
 
   const handleColorSelection = (color) => {
     setSelectedColor(color);
   };
+  
 
   return (
     <View style={styles.container}>
@@ -57,12 +70,11 @@ const Start = ({ navigation }) => {
           </View>
           <TouchableOpacity
             style={styles.buttonStartChatting}
-            onPress={() => navigation.navigate('Chat', { userName: name, background: selectedColor })}
-          >
+            onPress={signInUser}>
             <Text style={styles.buttonText}>Start Chatting</Text>
           </TouchableOpacity>
         </View>
-        { Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="padding" /> : null }
+        {Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="padding" /> : null}
       </ImageBackground>
     </View>
   );
