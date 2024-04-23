@@ -1,12 +1,17 @@
-import { View, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Platform, KeyboardAvoidingView, TouchableOpacity, Text } from 'react-native';
 import { useState, useEffect } from "react";
 import { Bubble, GiftedChat } from "react-native-gifted-chat";
 import { collection, addDoc, onSnapshot, orderBy, query } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MapView from 'react-native-maps';
+import CustomActions from './CustomActions';
+import { Audio } from 'expo-av';
 
-const Chat = ({ route, navigation, db, isConnected }) => {
+
+const Chat = ({ route, navigation, db, isConnected, storage }) => {
   const { background, userName } = route.params;
-  const [messages, setMessages] = useState([]); 
+  const [messages, setMessages] = useState([]);
+  let soundObject = null; 
 
   const onSend = (newMessages = []) => {
     addDoc(collection(db, "messages"), newMessages[0]);
@@ -18,7 +23,7 @@ const Chat = ({ route, navigation, db, isConnected }) => {
       {...props}
       wrapperStyle={{
         right: {
-          backgroundColor: "#000"
+          backgroundColor: "#0009"
         },
         left: {
           backgroundColor: "#FFF"
@@ -26,6 +31,49 @@ const Chat = ({ route, navigation, db, isConnected }) => {
       }}
     />
   }
+
+  const renderCustomActions = (props) => {
+    return <CustomActions onSend={onSend} storage={storage} {...props} userName={userName} />;
+  };
+
+  const renderCustomView = (props) => {
+    const { currentMessage } = props;
+    if (currentMessage.location) {
+      return (
+        <MapView
+          style={{ width: 150, height: 100, borderRadius: 13, margin: 3 }}
+          region={{
+            latitude: currentMessage.location.latitude,
+            longitude: currentMessage.location.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+        />
+      );
+    }
+    return null;
+  };
+
+  // Render Audio Messages
+  const renderMessageAudio = (props) => {
+    return <View {...props}>
+    <TouchableOpacity style={{ backgroundColor: "#FF5", borderRadius: 10, margin: 5 }}
+    onPress={async () => {
+      try {
+        if (soundObject) soundObject.unloadAsync();
+        const { sound } = await Audio.Sound.createAsync({ uri: props.currentMessage.audio });
+        soundObject = sound;
+        await sound.playAsync();
+      } catch (error) {
+        console.error("Error playing audio:", error);
+      }
+    }}>
+      <Text style={{ textAlign: "center", color: 'black', padding: 5 }}>
+        Play Sound
+      </Text>
+    </TouchableOpacity>
+  </View>;
+};
 
 
   let unsubMessages;
@@ -93,6 +141,9 @@ const Chat = ({ route, navigation, db, isConnected }) => {
         user={{
           _id: route.params.id,
         }}
+        renderActions={renderCustomActions}
+        renderCustomView={renderCustomView}
+        renderMessageAudio={renderMessageAudio}
       />
       { Platform.OS === 'android' ? <KeyboardAvoidingView behavior="height" /> : null }
     </View>
